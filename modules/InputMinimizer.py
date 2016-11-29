@@ -22,6 +22,7 @@ Created on Apr 13, 2015
 from utilities.Logger import Logger
 from utilities.Executer import Executer
 from modules.SignalFinder import SignalFinder
+import signal
 import os
 
 class InputMinimizer:
@@ -47,6 +48,10 @@ class InputMinimizer:
                 cmd = self.config.get_afl_tmin_command_line(filepath, os.path.join(self.output_dir, filename))
                 Logger.debug("Executing:", cmd)
                 Logger.busy()
-                signal = executer.run_command(cmd, timeout=self.config.run_timeout_tmin, env=self.config.env)
-                if signal == SignalFinder.TIMEOUT_SIGNAL:
+                ret = executer.run_command(cmd, timeout=self.config.run_timeout_tmin, env=self.config.env)
+                if ret == SignalFinder.TIMEOUT_SIGNAL:
                     Logger.error("Minimizing this file took too long, aborted")
+		elif ret == signal.SIGTTOU:
+                    Logger.error("afl-tmin failed with SIGTTOU")
+                elif ret != 0:
+                    Logger.error("afl-tmin failed with return code {}".format(ret))
