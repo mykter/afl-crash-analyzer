@@ -69,7 +69,14 @@ class Executer:
         #TODO: make stdout / stderr configurable
         if not timeout:
             timeout = self.config.run_timeout
-        process = subprocess.Popen(command, stdin=None, shell=False, stdout=stdout, stderr=stderr)
+
+        # Somewhat of a hack to support stdin without any architectural changes
+        if command[-1].strip().startswith("<"):
+            stdin = file(command[-1].strip()[1:].strip(), 'r') # everything except the "<"
+        else:
+            stdin = None
+
+        process = subprocess.Popen(command, stdin=stdin, shell=False, stdout=stdout, stderr=stderr)
         self.current_process = process
         signal.signal(signal.SIGALRM, self._handle_alarm)
         #We also had a problem that memory corruptions...

@@ -146,29 +146,38 @@ class CrashAnalysisConfig:
             os.mkdir(self.output_dir)
         if not os.path.exists(self.tmp_dir):
             os.mkdir(self.tmp_dir)
-        self.prepare_gdb_script()
+
+        if not self.is_stdin_binary:
+            # For stdin binaries, we generate a new script each run
+            self.prepare_gdb_script()
         
-    def prepare_gdb_script(self, new_gdb_script=None):
+    def prepare_gdb_script(self, new_gdb_script=None, filepath=None):
         if new_gdb_script is None:
             new_gdb_script = self.gdb_script
             output_file_path = self.gdb_script_path
         else:
             output_file_path = os.path.join(self.tmp_dir, get_new_output_file_name(self.tmp_dir, "gdb_script", ".txt", self.max_digets))
-        #TODO: support stdin
-        script_content = 'run' + os.linesep
+        if self.is_stdin_binary:
+            script_content = 'run < "' + filepath + '"' + os.linesep
+        else:
+            script_content = 'run' + os.linesep
         script_content += new_gdb_script + os.linesep
         script_content += "quit"
         file(output_file_path, "w").write(script_content)
         return output_file_path
 
-    def get_command_line(self, binary, filepath):
+    def get_command_line(self, binary, filepath, no_redirection=False):
+        # Specify no_redirection=True to inhibit the usual stdin redirection from filepath for stdin binaries
+
         command = [binary]
         if self.args_before:
             command.extend(self.args_before)
-        if filepath: #TODO: support stdin
+        if (not self.is_stdin_binary):
             command.append(filepath)
         if self.args_after:
             command.extend(self.args_after)
+        if self.is_stdin_binary and not no_redirection:
+            command.extend(["< " + filepath])
         return command
     
     @DeprecationWarning
@@ -176,10 +185,12 @@ class CrashAnalysisConfig:
         command = '"'+binary+'"'
         if self.args_before:
             command += " "+self.args_before
-        if filepath: #TODO: support stdin
+        if (not self.is_stdin_binary):
             command += ' "'+filepath+'"'
         if self.args_after:
             command += " "+self.args_after
+        if self.is_stdin_binary:
+            command += ' < "' + filepath + '"'
         return command
     
     def get_gdb_command_line(self, binary, filepath, path_to_gdb_script=None):
@@ -190,7 +201,9 @@ class CrashAnalysisConfig:
             command.extend(self.gdb_args)
         command.extend(['--command='+path_to_gdb_script])
         command.extend(['--args'])
-        command.extend(self.get_command_line(binary, filepath))
+        command.extend(self.get_command_line(binary, filepath, no_redirection=True))
+        if self.is_stdin_binary: # update the script to point at the current input
+            self.prepare_gdb_script(filepath=filepath)
         return command
     
     @DeprecationWarning
@@ -201,7 +214,7 @@ class CrashAnalysisConfig:
         if self.gdb_args:
             command += ' '+self.gdb_args
         command += ' --command="'+path_to_gdb_script+'"'
-        command += ' --args '+self.get_command_line(binary, filepath)
+        command += ' --args '+self.get_command_line(binary, filepath, no_redirection=True)
         return command
     
     def get_afl_tmin_command_line(self, input_filepath, output_filepath):
@@ -210,10 +223,7 @@ class CrashAnalysisConfig:
             command.extend(self.tmin_args)
         command.extend(['-i', input_filepath])
         command.extend(['-o', output_filepath])
-        if self.is_stdin_binary:
-            command.extend(self.get_command_line(self.target_binary_instrumented, ""))
-        else:
-            command.extend(self.get_command_line(self.target_binary_instrumented, "@@"))
+        command.extend(self.get_command_line(self.target_binary_instrumented, "@@", no_redirection=True))
         return command
     
     @DeprecationWarning
@@ -223,10 +233,7 @@ class CrashAnalysisConfig:
             command += " "+self.tmin_args
         command += ' -i "'+input_filepath+'"'
         command += ' -o "'+output_filepath+'"'
-        if self.is_stdin_binary:
-            command += ' '+self.get_command_line(self.target_binary_instrumented, "")
-        else:
-            command += ' '+self.get_command_line(self.target_binary_instrumented, "@@")
+        command += ' ' + self.get_command_line(self.target_binary_instrumented, "@@", no_redirection=True)
         return command
     
     def get_most_standard_binary(self):
