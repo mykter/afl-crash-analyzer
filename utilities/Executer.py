@@ -21,8 +21,6 @@ Created on Apr 13, 2015
 '''
 import subprocess
 import signal
-import multiprocessing
-import Queue
 from utilities.Logger import Logger
 
 class Executer:
