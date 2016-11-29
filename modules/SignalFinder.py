@@ -81,8 +81,8 @@ class SignalFinder:
         signal_folder_name = str(signal)
         return os.path.join(self.output_dir, signal_folder_name)
 
-    def get_folder_paths_for_signals_if_exist(self, ignore_signals):
-        l = list(set(range(-500,500)) - set(ignore_signals))
+    def get_folder_paths_for_signals_if_exist(self, config):
+        l = list(set(range(-500,500)) - set(config.ignore_signals))
         l.sort()
         for signal in l:
             signal_folder = self.get_folder_path_for_signal(signal)

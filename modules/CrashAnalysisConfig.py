@@ -28,7 +28,7 @@ class CrashAnalysisConfig:
     def __init__(self, main_dir, target_binary_instrumented, args_before, args_after, 
                  target_binary_plain=None, target_binary_asan=None, crash_dir=None, is_stdin_binary=False, tmin_args=[],
                  run_timeout=15, max_digets=4, env={}, output_dir=None, gdb_script=None, gdb_binary="gdb", 
-                 afl_binaries_location="/usr/local/bin"):
+                 afl_binaries_location="/usr/local/bin", ignore_signals=range(0,129)):
         
         #Main directory where these scripts live, all other directories will be derived relatively from here
         self.main_dir = main_dir
@@ -71,6 +71,11 @@ class CrashAnalysisConfig:
         #If you don't have such a binary, leave it as None
         #Full path necessary
         self.target_binary_asan = target_binary_asan
+
+        # Interestings signals: Typically negative on OSX, 129 and above sometimes for Linux on the shell (depending on used mechanism)
+        # Uninteresting signals: We usually don't care about signals 0, 1, 2, etc. up to 128
+        # Allow config to override to handle e.g. crashes that only appear under the debugger
+        self.ignore_signals = ignore_signals
         
         #Any arguments for binary which should be put in front of the input file parameter @@
         self.args_before = args_before

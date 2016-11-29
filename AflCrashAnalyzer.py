@@ -30,8 +30,8 @@ from utilities.Logger import Logger
 import os
 import glob
 
-def analyze_output_and_exploitability(config, signal_finder, uninteresting_signals, message_prefix=""):
-    for signal, signal_folder in signal_finder.get_folder_paths_for_signals_if_exist(uninteresting_signals):
+def analyze_output_and_exploitability(config, signal_finder, message_prefix=""):
+    for signal, signal_folder in signal_finder.get_folder_paths_for_signals_if_exist(config):
         skip = False
         for cat in ExploitableGdbPlugin.get_classifications():
             if os.path.exists(os.path.join(signal_folder, cat)):
@@ -135,9 +135,11 @@ gdb.execute("quit")
     #Logger.info("Renaming all files to numeric values, as some programs prefer no special chars in filenames and might require a specific file extension")
     #fdf.rename_all_files(".png")
     
-    #
-    Logger.info("Finding interesting signals (all crashes)")
-    #
+    if chosen_config.ignore_signals == range(0,129):
+        Logger.info("Finding interesting signals (using default config - all crashes)")
+    else:
+        Logger.info("Finding interesting signals (using target-specific config)")
+
     sf_all_crashes = SignalFinder(chosen_config)
     if os.path.exists(chosen_config.default_signal_directory):
         Logger.warning("Seems like all crashes were already categorized by signal, skipping. If you want to rerun: rm -r", chosen_config.default_signal_directory)
@@ -145,17 +147,13 @@ gdb.execute("quit")
         Logger.debug("Dividing files to output folder according to their signal")
         sf_all_crashes.divide_by_signal()
     
-    #Interestings signals: negative on OSX, 129 and above sometimes for Linux on the shell (depending on used mechanism)
-    #Uninteresting signals: We usually don't care about signals 0, 1, 2, etc. up to 128
-    uninteresting_signals = range(0, 129)
-    
-    analyze_output_and_exploitability(chosen_config, sf_all_crashes, uninteresting_signals, message_prefix="Interesting signals /")
+    analyze_output_and_exploitability(chosen_config, sf_all_crashes, message_prefix="Interesting signals /")
         
     Logger.info("Interesting signals / Minimizing input (afl-tmin)")
     if os.path.exists(chosen_config.default_minimized_crashes_directory):
         Logger.warning("Seems like crashes were already minimized, skipping. If you want to rerun: rm -r", chosen_config.default_minimized_crashes_directory)
     else:
-        for signal, signal_folder in sf_all_crashes.get_folder_paths_for_signals_if_exist(uninteresting_signals):
+        for signal, signal_folder in sf_all_crashes.get_folder_paths_for_signals_if_exist(chosen_config):
             Logger.debug("Minimizing inputs resulting in signal %i" % signal)
             im = InputMinimizer(chosen_config, signal_folder)
             im.minimize_testcases()
@@ -176,7 +174,7 @@ gdb.execute("quit")
         sf_minimized_crashes.divide_by_signal(0)
     
     
-    analyze_output_and_exploitability(chosen_config, sf_minimized_crashes, uninteresting_signals, message_prefix="Interesting signals / Minimized inputs /")
+    analyze_output_and_exploitability(chosen_config, sf_minimized_crashes, message_prefix="Interesting signals / Minimized inputs /")
     
 #TODO:
 #- Make (some) modules work as standalone applications with command line parsing
