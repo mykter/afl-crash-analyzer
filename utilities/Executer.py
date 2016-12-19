@@ -87,8 +87,11 @@ class Executer:
         #blocking call:
         process.communicate()
         signal.alarm(0)
-        #This line is reached when timeout_flag was set by _handle_alarm if it was called
+        if stdin:
+            stdin.close()
+
         if self.timeout_flag:
+            #This line is reached when timeout_flag was set by _handle_alarm if it was called
             Logger.debug("Process was killed as it exceeded the time limit", debug_level=3)
             ret_signal = self.TIMEOUT_SIGNAL
         elif self.sigttou_flag:
