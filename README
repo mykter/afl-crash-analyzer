@@ -26,7 +26,7 @@ Installation:
 
 A couple of notes: 
 - If AFL binaries are not /usr/local/bin, configure the path as a named argument to CrashAnalysisConfig
-- The target binary is started as: /opt/binary-instrumented args_before input-file args_after, no stdin supported at the moment (sorry for that, will do as soon as I get crashes for the first stdin target)
+- The target binary is started as: "/opt/binary-instrumented args_before input-file args_after", or "/opt/binary-instruments args_before args_after < testcase" for stdin binaries.
 - You might want to update the code for all your binaries to the newest developer version before compilation (even if you fuzzed on older version), so you filter out crashes that were fixed by the maintainer in the meantime. Check testcases folder (install.sh) for examples.
 - You *do* want to run "peruvian were rabbit" on all your crashes (I guess at least one cycle) *before* you feed it into this program. That will help you a lot to determine exploitability.
 - afl instrumented binary is the minimum, recommend is to also set at least one of the following binaries
