@@ -45,14 +45,14 @@ def analyze_output_and_exploitability(config, signal_finder, message_prefix=""):
             else:
                 of = OutputFinder(config, signal_folder)
                 of.do_sane_output_runs()
-            
+
             Logger.info(message_prefix, "Analyzing exploitability (signal %s)" % signal)
             egp = ExploitableGdbPlugin(config, signal_folder)
             egp.divide_by_exploitability()
 
 def main():
-    #Read the README before you start.
-    
+    # Read the README before you start.
+
     Logger.info("Setting up configuration")
 
     gdb_script_64bit = r"""printf "[+] Disabling verbose and complaints\n"
@@ -84,8 +84,8 @@ printf "[+] list\n"
 list
 """
 
-    #TODO: Make sure gdb script doesn't abort on error
-    #ignoring errors in gdb scripts: http://stackoverflow.com/questions/17923865/gdb-stops-in-a-command-file-if-there-is-an-error-how-to-continue-despite-the-er
+    # TODO: Make sure gdb script doesn't abort on error
+    # ignoring errors in gdb scripts: http://stackoverflow.com/questions/17923865/gdb-stops-in-a-command-file-if-there-is-an-error-how-to-continue-despite-the-er
     gdb_script_32bit_noerror = r"""python
 def my_ignore_errors(arg):
   try:
@@ -100,41 +100,40 @@ gdb.execute("quit")
     """
 
     where_this_python_script_lives = os.path.dirname(os.path.realpath(__file__))
-    
+
     gdb_command = "/usr/bin/gdb"
     #gdb_command_osx = "/opt/local/bin/gdb-apple"
-    
+
     #TODO: For some reason the ASAN environment variables are not correctly set when given to the subprocess module... so let's just set it in parent process already:
     os.environ['ASAN_SYMBOLIZER_PATH'] = "/usr/bin/llvm-symbolizer-3.4"
     os.environ['ASAN_OPTIONS'] = "symbolize=1:redzone=512:quarantine_size=512Mb:exitcode=1:abort_on_error=1"
     env={"ASAN_SYMBOLIZER_PATH": "/usr/bin/llvm-symbolizer-3.4", "ASAN_OPTIONS": "symbolize=1:redzone=512:quarantine_size=512Mb:exitcode=1:abort_on_error=1"}
-    
+
     ###
-    #This import decides which testcase/binary we want to run!
+    # This import decides which testcase/binary we want to run!
     ###
     from testcases.ffmpeg.Config import create_config
     #from testcases.ffmpeg.Config import create_config
     #see CrashAnalysisConfig for more options that get passed on by create_config
     chosen_config = create_config(where_this_python_script_lives, env=env, gdb_script=gdb_script_32bit, gdb_binary=gdb_command)
     chosen_config.sanity_check()
-    
+
     #
     Logger.info("Input crashes directory operations")
     #
-    
+
     Logger.info("Removing README.txt files")
     fdf = FileDuplicateFinder(chosen_config, chosen_config.original_crashes_directory)
     fdf.remove_readmes()
-    
+
     Logger.info("Removing duplicates from original crashes folder (same file size + MD5)")
     fdf.delete_duplicates_recursively()
-    
+
     Logger.info("Renaming files from original crashes folder so that the filename is a unique identifier. This allows us to copy all crash files into one directory (eg. for tmin output) if necessary, without name collisions")
     fdf.rename_same_name_files()
     #OR:
     #Logger.info("Renaming all files to numeric values, as some programs prefer no special chars in filenames and might require a specific file extension")
     #fdf.rename_all_files(".png")
-    
     if chosen_config.ignore_signals == range(0,129):
         Logger.info("Finding interesting signals (using default config - all crashes)")
     else:
@@ -146,9 +145,9 @@ gdb.execute("quit")
     else:
         Logger.debug("Dividing files to output folder according to their signal")
         sf_all_crashes.divide_by_signal()
-    
+
     analyze_output_and_exploitability(chosen_config, sf_all_crashes, message_prefix="Interesting signals /")
-        
+ 
     Logger.info("Interesting signals / Minimizing input (afl-tmin)")
     if os.path.exists(chosen_config.default_minimized_crashes_directory):
         Logger.warning("Seems like crashes were already minimized, skipping. If you want to rerun: rm -r", chosen_config.default_minimized_crashes_directory)
@@ -157,11 +156,11 @@ gdb.execute("quit")
             Logger.debug("Minimizing inputs resulting in signal %i" % signal)
             im = InputMinimizer(chosen_config, signal_folder)
             im.minimize_testcases()
-        
+
         Logger.info("Interesting signals / Minimized inputs / Deduplication")
         fdf_minimized = FileDuplicateFinder(chosen_config, chosen_config.default_minimized_crashes_directory)
         fdf_minimized.delete_duplicates_recursively()
-        
+
     #
     Logger.info("Interesting signals / Minimized inputs / Finding interesting signals")
     #
@@ -172,8 +171,7 @@ gdb.execute("quit")
         os.mkdir(sf_minimized_crashes.output_dir)
         Logger.info("Dividing files to output folder according to their signal")
         sf_minimized_crashes.divide_by_signal(0)
-    
-    
+   
     analyze_output_and_exploitability(chosen_config, sf_minimized_crashes, message_prefix="Interesting signals / Minimized inputs /")
     
 #TODO:
@@ -188,6 +186,7 @@ gdb.execute("quit")
 
 
     cleanup(chosen_config)
+
 
 def cleanup(config):
     for path, _, files in os.walk(config.tmp_dir):
